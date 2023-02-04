@@ -8,10 +8,9 @@ var apiModule = new APIModule();
 // API-METHODS
 // ---------------------------------------------------------------------------------
 apiModule.addMethod(new APIMethod({
-    url : '/',
+    path : '/',
     parameters : [],
     requireSession : true,
-    requireNoSession : false,
     requiredPermissions : [],
     transaction : true,
     handler : async ({ parms, session }) => {
