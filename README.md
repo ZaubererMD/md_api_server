@@ -5,6 +5,8 @@ Node.js module to create JSON-RPC APIs
 - Public methods as well as methods that are only available to registered users
 - Permission-Management to control which user can call which use which methods
 - Automatic checking and sanitizing of passed parameters
+- Accepts parameters being passed via GET or POST, with POST-body content-types `application/json` or `application/x-www-form-urlencoded`
+- Multicall-method to perform multiple calls in one rountrip
 
 ## Getting started
 
@@ -107,6 +109,9 @@ The APi responds with a JSON-Object that has the following properties:
 - {string} [msg]: Only passed if success is false. A human-readable explanation of what went wrong.
 - {string} [code]: Only passed if success is false, but not always. It is a constant from `ERROR_CODES` in [APIConstants.js](APIConstants.js) that allows the application to react to certain errors autoamtically (like prompting the user to login again when an invalid session is detected).
 - {any} [data]: Is returned if success is true. Might also be null. The data returned by the `APIMethod` in `return apiUtils.success(DATA);`.
+
+## Multicall
+TODO: Explain what this is
 
 ## Clients
 Since the API is available via HTTP and responds with JSON, development of clients in different languages is relatively easy. Currently the following Client-implementations exist:
