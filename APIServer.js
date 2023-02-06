@@ -229,11 +229,17 @@ class APIServer {
 
                 // Parse body parms depending on content-type
                 let bodyParms = {};
-                let contentType = request.headers['content-type'].substring(0, request.headers['content-type'].indexOf(';'));
-                if(contentType === 'application/json') {
-                    bodyParms = JSON.parse(body);
-                } else if(contentType === 'application/x-www-form-urlencoded') {
-                    bodyParms = qs.parse(body);
+                if(request.headers['content-type'] !== undefined && request.headers['content-type'] !== null) {
+                    let contentType = request.headers['content-type'];
+                    let semicolonIndex = contentType.indexOf(';');
+                    if(semicolonIndex !== -1) {
+                        contentType = contentType.substring(0, semicolonIndex);
+                    }
+                    if(contentType === 'application/json') {
+                        bodyParms = JSON.parse(body);
+                    } else if(contentType === 'application/x-www-form-urlencoded') {
+                        bodyParms = qs.parse(body);
+                    }
                 }
 
                 // merge GET- and POST-parmameters into one object
