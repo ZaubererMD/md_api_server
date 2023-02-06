@@ -9,6 +9,7 @@ const qs = require('querystring');
 const http = require('http');
 const spdy = require('spdy');
 const fs = require('fs');
+const cors = require('cors');
 
 // Import other Modules
 const APIModule = require('./APIModule.js');
@@ -104,13 +105,18 @@ class APIServer {
             // ---------------------------------------------------------------------------------
             this.app = express();
 
-            // Prevent the API from sending certain HTTP-Headers
+            // Set md_api_server in the x-powered-by header
             this.app.set('x-powered-by', false);
+            this.app.use((req, res, next) => {
+                res.header('x-powered-by', 'md_api_server');
+                next();
+            });
 
             // Allow CORS for all methods
             this.app.use((req, res, next) => {
                 res.header('Access-Control-Allow-Origin', '*');
-                res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+                res.header('Access-Control-Allow-Headers', 'Content-Length, Authorization, Origin, X-Requested-With, Content-Type, Accept');
+                res.header('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
                 next();
             });
 
@@ -235,8 +241,8 @@ class APIServer {
                 let session = null;
                 // if a token was transmitted, try to load the corresponding session
                 if(parms.token !== undefined && parms.token !== null) {
-                    if(parms.token.length === 64) { // length of sha256
-                        session = await this.establishSession(parms.token);
+                    if(parms.token.length === 36) { // length of uuid
+                        session = await apiUtils.establishSession(parms.token);
                     }
                 }
 
