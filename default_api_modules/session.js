@@ -101,34 +101,16 @@ apiModule.addMethod(new APIMethod({
         // Delete all issued login-tokens for this client
         await db.query('DELETE FROM '+config.db.auth_database+'.api_login_tokens WHERE ip=? AND user_agent=?', ip, userAgent);
 
-        // Generate a new session
-        let sessionResult = await db.query(
-            'INSERT INTO '+config.db.auth_database+'.api_sessions (user_id, start_date, expiration_date, ip, user_agent)' +
-            ' VALUES (?, NOW(), DATE_ADD(NOW(), INTERVAL 1 HOUR), ?, ?);',
-            user.user_id, ip, userAgent
-        );
-        if(sessionResult === null) {
-            return apiUtils.error('MySQL-Error while creating the new session');
-        }
-        let sessionID = sessionResult.insertId;
-
-        // Generate session-token
-        let sessionToken = getUUID();
-        let sessionTokenResult = await db.query('UPDATE '+config.db.auth_database+'.api_sessions SET session_token=? WHERE session_id=?', sessionToken, sessionID);
-        if(sessionTokenResult === null) {
-            return apiUtils.error('MySQL-Error while storing the session-token');
-        }
-
-        // Load session data
-        let loadedSession = await apiUtils.getSession(sessionID);
-        if(loadedSession === null) {
-            return apiUtils.error('Error while loading the session');
+        // Create the new session
+        let newSession = await apiUtils.createSession(user.user_id, ip, userAgent);
+        if(newSession === null) {
+            return apiUtils.error('An Error occured when creating the session');
         }
 
         // record login in user account
         await db.query('UPDATE '+config.db.auth_database+'.api_users SET last_login=NOW() WHERE user_id=?', user.user_id);
 
-        return apiUtils.successSession({ session : loadedSession }, loadedSession);
+        return apiUtils.successSession({ session : newSession }, newSession);
     }
 }));
 
@@ -141,7 +123,7 @@ apiModule.addMethod(new APIMethod({
     transaction : true,
     handler : async ({ parms, request, response, session }) => {
         // Delete session from database
-        if(!await deleteSession(session.session_id)) {
+        if(!await apiUtils.deleteSession(session.session_id)) {
             return apiUtils.error('MySQL-Error while deleting the session');
         }
 
@@ -164,7 +146,7 @@ apiModule.addMethod(new APIMethod({
 
         // remove all other sessions
         for(let otherSession of otherSessions) {
-            if(!await deleteSession(otherSession.session_id)) {
+            if(!await apiUtils.deleteSession(otherSession.session_id)) {
                 return apiUtils.error('Error deleting one of the sessions');
             }
         }
@@ -202,21 +184,6 @@ async function createToken(request) {
     );
 
     return token;
-}
-
-/**
- * Terminates the session with the given ID
- * @param {integer} sessionID the ID of the session to terminate
- * @returns {boolean} true if successful, false otherwise
- */
-async function deleteSession(sessionID) {
-    // Remove session from database
-	let sqlDelSes = 'DELETE FROM '+config.db.auth_database+'.api_sessions WHERE session_id=?';
-	if(!await db.query(sqlDelSes, sessionID)) {
-		// MySQL-Error
-		return false;
-	}
-	return true;
 }
 
 // ---------------------------------------------------------------------------------

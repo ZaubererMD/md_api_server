@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const https = require('https');
 const qs = require('querystring');
+const { v4 : getUUID } = require('uuid');
 
 // Import other Modules
 const config = require('./APIConfig.js');
@@ -99,7 +100,92 @@ class APIUtils {
         return session;
     }
 
+    /**
+     * Creates a new session for a given user
+     * @async
+     * @param {integer} userID ID of the user to create a new session for
+     * @param {string} ip IP address of the users client
+     * @param {string} userAgent User-Agent-String of the users client
+     * @returns {Object|null} An object with the new session details, or null if an error occured
+     */
+    async createSession(userID, ip, userAgent) {
+        // Generate session-token
+        let sessionToken = getUUID();
+
+        // Generate a new session
+        let sessionResult = await db.query(
+            'INSERT INTO '+config.db.auth_database+'.api_sessions (user_id, session_token, start_date, expiration_date, ip, user_agent)' +
+            ' VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 HOUR), ?, ?);',
+            userID, sessionToken, ip, userAgent
+        );
+        if(sessionResult === null) {
+            return null;
+        }
+        let sessionID = sessionResult.insertId;
+
+        // Load session data
+        let loadedSession = await this.getSession(sessionID);
+        if(loadedSession === null) {
+            return null;
+        }
+
+        return loadedSession;
+    }
+
+    /**
+     * Terminates the session with the given ID
+     * @async
+     * @param {integer} sessionID the ID of the session to terminate
+     * @returns {boolean} true if successful, false otherwise
+     */
+    async deleteSession(sessionID) {
+        // Remove session from database
+        let sqlDelSes = 'DELETE FROM '+config.db.auth_database+'.api_sessions WHERE session_id=?';
+        if(!await db.query(sqlDelSes, sessionID)) {
+            // MySQL-Error
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether a method can be executed given the current context and then executes it if so
+     * @async
+     * @param {APIMethod} method the method that shall be executed
+     * @param {Object} parms Parameters passed by the user
+     * @param {Object|null} session Object containing information about the session of the current user, or null if this an unauthenticated request
+     * @param {Object} request 
+     * @param {Object} response 
+     * @param {APImethod[]} methods all methods known to the API
+     * @returns {APIResponse} An API-Response Object
+     */
     async tryExecuteMethod(method, parms, session, request, response, methods) {
+        // check whether this method shall be executed as another user
+        // (requires special permission, can be used for e.g. chatbots)
+        let originalSession = null;
+        if(parms.as_user !== undefined && parms.as_user !== null) {
+            // check if the current user has the 'as_user' permission
+            if(session === null || session.user_id === undefined || session.user_id === null || !await this.userHasPermissions(session.user_id, ['as_user'])) {
+                return this.error('You are not allowed to execute methods as other users', ERROR_CODES.PERMISSION_MISSING);
+            }
+
+            let otherUserId = null;
+            try {
+                otherUserId = parseInt(parms.as_user);
+            } catch(e) {
+                return this.error('Parameter as_user has the wrong type, expected int.', ERROR_CODES.PARAM_TYPE);
+            }
+
+            let otherSession = await this.createSession(otherUserId, '127.0.0.1', 'md_api_server');
+            if(otherSession === null) {
+                return this.error('An error occured when creating the session of the other user', ERROR_CODES.HANDLER_ERROR);
+            }
+
+            // swap session for one call
+            originalSession = session;
+            session = otherSession;
+        }
+
         // verify whether the method can be executed (parameters / permissions)
         let executionVerification = await method.canBeExecuted(parms, session);
         let methodResponse = null;
@@ -119,6 +205,14 @@ class APIUtils {
                 console.log('Error executing a method', err);
                 methodResponse = this.error('An Error occured while executing the requested method.', errorCode);
             });
+        }
+
+        if(originalSession !== null) {
+            // Delete the session created under the as_user parameter
+            await this.deleteSession(session.session_id);
+
+            // restore the original session
+            session = originalSession;
         }
         
         return methodResponse;
