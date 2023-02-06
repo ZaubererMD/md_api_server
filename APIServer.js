@@ -229,9 +229,10 @@ class APIServer {
 
                 // Parse body parms depending on content-type
                 let bodyParms = {};
-                if(request.headers['content-type'] === 'application/json') {
+                let contentType = request.headers['content-type'].substring(0, request.headers['content-type'].indexOf(';'));
+                if(contentType === 'application/json') {
                     bodyParms = JSON.parse(body);
-                } else if(request.headers['content-type'] === 'application/x-www-form-urlencoded') {
+                } else if(contentType === 'application/x-www-form-urlencoded') {
                     bodyParms = qs.parse(body);
                 }
 
