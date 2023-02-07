@@ -115,6 +115,7 @@ TODO: Explain what this is
 
 ## Clients
 Since the API is available via HTTP and responds with JSON, development of clients in different languages is relatively easy. Currently the following Client-implementations exist:
+- JavaScript (Browser): [md_api_client_js](https://github.com/ZaubererMD/md_api_client_js)
 - Node.js: [md_api_client_nodejs](https://github.com/ZaubererMD/md_api_client_nodejs)
 - bash: [md_api_client_sh](https://github.com/ZaubererMD/md_api_client_sh)
 
