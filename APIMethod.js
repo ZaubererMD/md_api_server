@@ -2,6 +2,7 @@
 // IMPORTS
 // ---------------------------------------------------------------------------------
 const apiUtils = require('./APIUtils.js');
+const { ERROR_CODES } = require('./APIConstants.js');
 const db = require('./APIDatabase.js');
 
 // ---------------------------------------------------------------------------------

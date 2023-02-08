@@ -29,19 +29,32 @@ const config = require('./APIConfig.js');
  */
 class APIServer {
     /**
+     * @typedef {Object} DatabaseConfig
+     * @property {string} host Host the MySQL instance runs on
+     * @property {string} user Username to use for MySQL-authentication
+     * @property {string} password Password to use for MySQL-authentication
+     * @property {string} auth_database Database that contains the the authorization tables
+     */
+    /**
+     * @typedef {Object} HTTPConfig
+     * @property {integer} port Port to run the HTTP server on
+     */
+    /**
+     * @typedef {Object} HTTPSConfig
+     * @property {integer} port Port to run the HTTPS server on
+     * @property {string} cert path to SSL certificate
+     * @property {string} key path to SSL keyfile
+     */
+    /**
+     * @typedef {Object} APIConfig
+     * @property {DatabaseConfig} db MySQL-Database Configuration
+     * @property {HTTPConfig} [http] HTTP-Server configuration, if this is left out no HTTP server will be started
+     * @property {HTTPSConfig} [https] HTTPS-Server configuration, if this is left out no HTTPS server will be started
+     * @property {boolean} [debug=false] If set to true the output will be more verbose
+     */
+    /**
      * Creates a new instance of an MD-API-Server
-     * @param {Object} newConfig Configuration properties of the API Instance
-     * @param {Object} newConfig.db MySQL-Database Configuration
-     * @param {string} newConfig.db.host Host the MySQL instance runs on
-     * @param {string} newConfig.db.user Username to use for MySQL-authentication
-     * @param {string} newConfig.db.password Password to use for MySQL-authentication
-     * @param {string} newConfig.db.auth_database Database that contains the the authorization tables
-     * @param {Object} [newConfig.http] HTTP-Server configuration, if this is left out no HTTP server will be started
-     * @param {integer} newConfig.http.port Port to run the HTTP server on
-     * @param {Object} [newConfig.https] HTTPS-Server configuration, if this is left out no HTTPS server will be started
-     * @param {integer} newConfig.https.port Port to run the HTTPS server on
-     * @param {string} newConfig.https.cert path to SSL certificate
-     * @param {string} newConfig.https.key path to SSL keyfile
+     * @param {APIConfig} newConfig Configuration properties of the API Instance
      */
     constructor(newConfig) {
         config.set(newConfig);
@@ -59,10 +72,21 @@ class APIServer {
     }
 
     /**
+     * Writes a message to the console if config.debug is true
+     * @param {...string} msg The message to write to the console
+     */
+    debug(...msg) {
+        if(config.debug) {
+            console.log('[DEBUG]', ...msg);
+        }
+    }
+
+    /**
      * Adds a new method to the API-server
      * @param {APIMethod} method the method to add
      */
     addMethod(method) {
+        this.debug('Added new method ' + method.path);
         this.methods.push(method);
     }
     /**
@@ -97,9 +121,12 @@ class APIServer {
      * Starts the API-server
      */
     start() {
+        this.debug('Starting the API-Server');
         // Connect to the database
         db.connect()
         .then(() => {
+            this.debug('Database has been connected');
+
             // ---------------------------------------------------------------------------------
             // INITIALIZE API
             // ---------------------------------------------------------------------------------
@@ -176,7 +203,7 @@ class APIServer {
      */
     createMethodHandler(method) {
         let handler = (request, response) => {
-           this.methodHandlerWrapper(request, response, method);
+            this.methodHandlerWrapper(request, response, method);
         };
 
         this.app.get(method.path, handler);
@@ -193,6 +220,8 @@ class APIServer {
      * @param {APIMethod} method 
      */
     methodHandlerWrapper(request, response, method) {
+        this.debug('Request to', method.path);
+
         // Retrieve Parameters passed via GET
         let url_parts = null;
         let parms = null;
@@ -244,6 +273,7 @@ class APIServer {
 
                 // merge GET- and POST-parmameters into one object
                 parms = {...parms, ...bodyParms};
+                this.debug('Parameters:', parms);
 
                 let session = null;
                 // if a token was transmitted, try to load the corresponding session
@@ -252,8 +282,11 @@ class APIServer {
                         session = await apiUtils.establishSession(parms.token);
                     }
                 }
+                this.debug('Session:', session);
 
                 let methodResponse = await apiUtils.tryExecuteMethod(method, parms, session, request, response, this.methods);
+
+                this.debug('Response:', methodResponse);
                 response.json(apiUtils.makeClientResponse(methodResponse));
                 response.end();
                 
