@@ -155,6 +155,23 @@ apiModule.addMethod(new APIMethod({
     }
 }));
 
+apiModule.addMethod(new APIMethod({
+    path : '/session/keep_alive',
+    parameters : [],
+    requireSession : true,
+    requireNoSession : false,
+    requiredPermissions : [],
+    transaction : true,
+    handler : async ({ parms, request, response, session }) => {
+        if(!await db.query('UPDATE '+config.db.auth_database+'.api_sessions SET expiration_date=DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE session_id=?', session.session_id)) {
+            return apiUtils.error('MySQL-Error when updating the session expiration date');
+        } else {
+            let expirationDate = await db.query('SELECT expiration_date FROM '+config.db.auth_database+' WHERE session_id=?', session.session_id)[0].expiration_date;
+            return apiUtils.success({ expires : expirationDate });
+        }
+    }
+}));
+
 // ---------------------------------------------------------------------------------
 // HELPER FUNCTIONS
 // ---------------------------------------------------------------------------------
