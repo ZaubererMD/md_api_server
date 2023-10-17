@@ -435,12 +435,12 @@ class APIUtils {
                     }
                     break;
                 case 'datetime':
-                    if(newValue.match(/^(\d{4})-(0\d|1[1-2])-([0-2][1-9]|10|20|3[0-1]) ([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/) !== null) {
+                    if(newValue.match(/^(\d{4})-(0[1-9]|1[0-2])-([0-2][1-9]|10|20|3[0-1]) ([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/) !== null) {
                         typeCheckPassed = true;
                     }
                     break;
                 case 'date':
-                    if(newValue.match(/^(\d{4})-(0\d|1[1-2])-([0-2][1-9]|10|20|3[0-1])$/) !== null) {
+                    if(newValue.match(/^(\d{4})-(0[1-9]|1[0-2])-([0-2][1-9]|10|20|3[0-1])$/) !== null) {
                         typeCheckPassed = true;
                     }
                     break;
